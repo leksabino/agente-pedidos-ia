@@ -24,3 +24,18 @@ def ver_carrinho():
     for item in carrinho:
         total += item["preco"] * item["qtd"]
     return {"itens": carrinho, "total": formatar_preco(total)}
+
+def confirmar_pedido(cliente: str, confirmacao_explicita: bool):
+    # Trava 1: sem SIM, não confirma
+    if not confirmacao_explicita:
+        return {"erro": "Preciso da sua confirmação explícita. Digite SIM para confirmar."}
+    # Trava 2: carrinho vazio não confirma
+    if not carrinho:
+        return {"erro": "Carrinho vazio."}
+    # Calcula total
+    total = 0
+    for item in carrinho:
+        total += item["preco"] * item["qtd"]
+    # Limpa o carrinho depois de confirmar
+    carrinho.clear()
+    return {"sucesso": f"Pedido confirmado para {cliente}", "total": formatar_preco(total)}
