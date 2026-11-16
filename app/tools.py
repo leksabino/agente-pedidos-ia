@@ -39,3 +39,28 @@ def confirmar_pedido(cliente: str, confirmacao_explicita: bool):
     # Limpa o carrinho depois de confirmar
     carrinho.clear()
     return {"sucesso": f"Pedido confirmado para {cliente}", "total": formatar_preco(total)}
+
+def formatar_cardapio_bonito():
+    linhas = ["🍕 Cardápio:"]
+    for item in CARDAPIO:
+        linhas.append(f"{item['id']}. {item['nome']} - {formatar_preco(item['preco'])}")
+    return "\n".join(linhas)
+
+def formatar_carrinho_bonito():
+    if not carrinho:
+        return "Carrinho vazio."
+    # Agrupa: soma quantidade do mesmo item
+    agrupado = {}
+    for item in carrinho:
+        nome = item["nome"]
+        if nome not in agrupado:
+            agrupado[nome] = {"preco": item["preco"], "qtd": 0}
+        agrupado[nome]["qtd"] += item["qtd"]
+    linhas = ["🛒 Seu pedido:"]
+    total = 0
+    for nome, dados in agrupado.items():
+        subtotal = dados["preco"] * dados["qtd"]
+        total += subtotal
+        linhas.append(f"{dados['qtd']}x {nome} - {formatar_preco(subtotal)}")
+    linhas.append(f"Total: {formatar_preco(total)}")
+    return "\n".join(linhas)

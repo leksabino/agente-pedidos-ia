@@ -22,28 +22,51 @@ except Exception as e:
     print(f"Gemini falhou, usando fallback: {e}")
 
 def processar_mensagem(mensagem: str, cliente: str = "Cliente"):
-    texto = mensagem.lower()
+    from app.tools import formatar_cardapio_bonito, formatar_carrinho_bonito
+    from app.database import CARDAPIO
+    import re
 
-    # Se o Gemini estiver ligado, tenta usar ele só pra entender
-    if cliente_gemini:
-        try:
-            resposta = cliente_gemini.models.generate_content(
-                model=modelo,
-                contents=f"Você é atendente. Cliente disse: '{mensagem}'. Responda curto."
-            )
-            # A gente ainda usa sua lógica com guardrail, o Gemini só ajuda a entender
-            if "cardapio" in texto or "cardápio" in texto:
-                return {"resposta": f"Gemini: {resposta.text} | Cardápio: {listar_cardapio()}"}
-        except Exception:
-            pass
+    texto = mensagem.lower().strip()
+    texto = texto.replace("marguerita", "margherita")
 
-    # Fallback que você já fez
+    # Se é número 1-4
+    if texto in ["1", "2", "3", "4"]:
+        numero = int(texto)
+        for item in CARDAPIO:
+            if item["id"] == numero:
+                resultado = adicionar_item(item["nome"], 1)
+                return {"resposta": f"{resultado}\n{formatar_carrinho_bonito()}"}
+
     if "cardapio" in texto or "cardápio" in texto or "menu" in texto:
-        return {"resposta": f"Nosso cardápio: {listar_cardapio()}"}
-    if texto.strip() == "sim":
+        return {"resposta": formatar_cardapio_bonito()}
+
+    # Quero pagar / confirmar / fechar = pede o SIM, não confirma direto
+    if "pagar" in texto or "confirmar" in texto or "fechar" in texto or "finalizar" in texto:
+        return {"resposta": "Pra confirmar, digite SIM. Sem SIM eu não fecho o pedido, é uma trava de segurança."}
+
+    if texto == "sim":
         resultado = confirmar_pedido(cliente, True)
         return {"resposta": str(resultado)}
-    if "pizza margherita" in texto:
-        resultado = adicionar_item("Pizza Margherita", 1)
-        return {"resposta": str(resultado) + f" | {ver_carrinho()}"}
-    return {"resposta": "Desculpe, não entendi. Você quer ver o cardápio, pedir Pizza Margherita ou confirmar com SIM?"}
+
+    # Procura quantidade: "99 pizzas" ou "2 batata"
+    # Pega o número do começo
+    match = re.match(r"(\d+)\s*(.*)", texto)
+    qtd = 1
+    texto_busca = texto
+    if match:
+        possivel_qtd = int(match.group(1))
+        # Se tem número, usa ele como quantidade
+        if possivel_qtd != 0:
+            qtd = possivel_qtd
+            texto_busca = match.group(2)
+
+    # Procura qualquer item, até só "margherita"
+    for item in CARDAPIO:
+        nome_item = item["nome"].lower()
+        # Aceita apelido: "margherita" sozinha = pizza margherita
+        apelido = nome_item.split()[-1]  # última palavra, ex: margherita, frita
+        if nome_item in texto_busca or apelido in texto_busca:
+            resultado = adicionar_item(item["nome"], qtd)
+            return {"resposta": f"{resultado}\n{formatar_carrinho_bonito()}"}
+
+    return {"resposta": "Desculpe, não entendi. Digite o número (1 a 4), o nome do prato ou SIM."}
